@@ -299,7 +299,7 @@ func _resume_game():
 func _make_box(box_name, size, position, color):
 	var mesh_instance = MeshInstance.new()
 	mesh_instance.name = box_name
-	var box_mesh = BoxMesh.new()
+	var box_mesh = CubeMesh.new()
 	box_mesh.size = size
 	mesh_instance.mesh = box_mesh
 	mesh_instance.translation = position
