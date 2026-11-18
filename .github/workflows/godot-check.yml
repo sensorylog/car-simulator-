@@ -9,6 +9,7 @@ on:
 jobs:
   windows-build:
     runs-on: ubuntu-22.04
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,8 +50,9 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          output="$GITHUB_WORKSPACE/ProjectVelocity.exe"
-          xvfb-run -a "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --export-release "Windows Desktop" "$output" --verbose
+          mkdir -p "$GITHUB_WORKSPACE/build"
+          output="$GITHUB_WORKSPACE/build/ProjectVelocity.exe"
+          timeout --signal=TERM --kill-after=30s 300s "$GODOT_BIN" --no-window --path "$GITHUB_WORKSPACE" --export-release "Windows Desktop" "$output" --verbose
           test -s "$output"
           size=$(stat -c%s "$output")
           echo "Windows executable size: $size bytes"
@@ -63,11 +65,11 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p package
-          cp ProjectVelocity.exe package/
+          cp build/ProjectVelocity.exe package/
           cp README.md package/README.txt
           (cd package && zip -q -9 "$GITHUB_WORKSPACE/ProjectVelocity-Windows.zip" ProjectVelocity.exe README.txt)
           test -s ProjectVelocity-Windows.zip
-          ls -lh ProjectVelocity.exe ProjectVelocity-Windows.zip
+          ls -lh build/ProjectVelocity.exe ProjectVelocity-Windows.zip
 
       - name: Upload playable Windows build
         uses: actions/upload-artifact@v4
