@@ -1,0 +1,33 @@
+name: Godot project validation
+
+on:
+  push:
+    branches:
+      - main
+      - build/first-playable
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  import-and-parse:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Godot 3.6.3
+        shell: pwsh
+        run: |
+          $url = "https://github.com/godotengine/godot/releases/download/3.6.3-stable/Godot_v3.6.3-stable_win64.exe.zip"
+          Invoke-WebRequest -Uri $url -OutFile "$env:RUNNER_TEMP\godot.zip"
+          Expand-Archive -Path "$env:RUNNER_TEMP\godot.zip" -DestinationPath "$env:RUNNER_TEMP\godot" -Force
+          $exe = Get-ChildItem "$env:RUNNER_TEMP\godot" -Filter "*.exe" -Recurse | Select-Object -First 1
+          if (-not $exe) { throw "Godot executable was not found in the downloaded archive." }
+          "GODOT_EXE=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Import project and parse scripts
+        shell: pwsh
+        run: |
+          & $env:GODOT_EXE --path "$env:GITHUB_WORKSPACE" --editor --no-window --quit
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
