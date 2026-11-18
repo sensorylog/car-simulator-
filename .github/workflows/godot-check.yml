@@ -52,7 +52,7 @@ jobs:
           set -euxo pipefail
           mkdir -p "$GITHUB_WORKSPACE/build"
           output="$GITHUB_WORKSPACE/build/ProjectVelocity.exe"
-          timeout --signal=TERM --kill-after=30s 300s "$GODOT_BIN" --no-window --path "$GITHUB_WORKSPACE" --export-release "Windows Desktop" "$output" --verbose
+          timeout --signal=TERM --kill-after=30s 300s xvfb-run -a "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --export-release "Windows Desktop" "$output" --verbose
           test -s "$output"
           size=$(stat -c%s "$output")
           echo "Windows executable size: $size bytes"
