@@ -160,6 +160,8 @@ func _physics_process(delta):
 			throttle_value = axis_throttle
 		if axis_brake > 0.04:
 			brake_value = axis_brake
+		if Input.is_joy_button_pressed(joy, 2):
+			handbrake_value = 1.0
 
 	if not driving_enabled:
 		throttle_value = 0.0
@@ -168,8 +170,10 @@ func _physics_process(delta):
 		handbrake_value = 1.0
 
 	var reverse_request = keyboard_reverse > 0.1
+	if pads.size() > 0 and Input.is_joy_button_pressed(pads[0], 1):
+		reverse_request = true
 	if reverse_request and speed_kmh < 4.0 and throttle_value < 0.05:
-		throttle_value = keyboard_reverse
+		throttle_value = max(keyboard_reverse, 1.0)
 		current_gear = -1
 	else:
 		_select_gear(speed_kmh)
