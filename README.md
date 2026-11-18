@@ -42,10 +42,10 @@ The project targets the GLES2 renderer and OpenGL 2.1-class hardware. Actual com
 | Action | Keyboard | Gamepad |
 |---|---|---|
 | Accelerate | W | Right trigger (standard axis 5) |
-| Reverse | S | Keyboard in this first build |
+| Reverse | S | B / Circle (button index 1) |
 | Steering | A / D | Left stick X (axis 0) |
 | Brake | Space | Left trigger (standard axis 4) |
-| Handbrake | Shift | Not mapped yet |
+| Handbrake | Shift | X / Square (button index 2) |
 | Change camera | C | Y / Triangle (button index 3) |
 | Reset car | R | Not mapped yet |
 | Pause | Escape | Start / Options (button index 6) |
