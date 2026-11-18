@@ -252,7 +252,7 @@ func get_speed_kmh():
 func _add_box(parent, box_name, size, position, color, metallic, roughness):
 	var instance = MeshInstance.new()
 	instance.name = box_name
-	var mesh = BoxMesh.new()
+	var mesh = CubeMesh.new()
 	mesh.size = size
 	instance.mesh = mesh
 	instance.translation = position
