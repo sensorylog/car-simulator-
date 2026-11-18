@@ -13,48 +13,67 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download Godot 3.6.3 and export templates
+      - name: Download Godot 3.6.3 and install export templates
         shell: pwsh
         run: |
           $base = "https://github.com/godotengine/godot/releases/download/3.6.3-stable"
           Invoke-WebRequest "$base/Godot_v3.6.3-stable_win64.exe.zip" -OutFile "$env:RUNNER_TEMP/godot.zip"
           Expand-Archive "$env:RUNNER_TEMP/godot.zip" "$env:RUNNER_TEMP/godot" -Force
-          $exe = Get-ChildItem "$env:RUNNER_TEMP/godot" -Filter "*.exe" -Recurse | Select-Object -First 1
-          if (-not $exe) { throw "Godot executable missing." }
-          "GODOT_EXE=$($exe.FullName)" | Out-File $env:GITHUB_ENV -Append
+          $godot = Get-ChildItem "$env:RUNNER_TEMP/godot" -Filter "*.exe" -Recurse | Select-Object -First 1
+          if (-not $godot) { throw "Godot executable missing." }
+          "GODOT_EXE=$($godot.FullName)" | Out-File $env:GITHUB_ENV -Append
 
           Invoke-WebRequest "$base/Godot_v3.6.3-stable_export_templates.tpz" -OutFile "$env:RUNNER_TEMP/templates.tpz"
           Expand-Archive "$env:RUNNER_TEMP/templates.tpz" "$env:RUNNER_TEMP/templates" -Force
           $sourceTemplates = Join-Path $env:RUNNER_TEMP "templates\templates"
           if (-not (Test-Path $sourceTemplates)) {
-            $found = Get-ChildItem "$env:RUNNER_TEMP/templates" -Directory -Recurse | Select-Object -ExpandProperty FullName
-            Write-Host "Extracted template directories:"
-            $found | ForEach-Object { Write-Host $_ }
-            throw "Could not find the Godot export templates directory."
+            Get-ChildItem "$env:RUNNER_TEMP/templates" -Force -Recurse | ForEach-Object { Write-Host $_.FullName }
+            throw "Could not find the extracted Godot templates directory."
           }
-          $templateVersion = Join-Path (Join-Path $env:APPDATA "Godot\templates") "3.6.3.stable"
+          $templateVersion = Join-Path $env:APPDATA "Godot\templates\3.6.3.stable"
           New-Item -ItemType Directory -Force -Path $templateVersion | Out-Null
           Copy-Item (Join-Path $sourceTemplates "*") $templateVersion -Recurse -Force
+          if (-not (Get-ChildItem $templateVersion -File -Recurse | Where-Object { $_.Name -match "windows.*(release|debug).*64" })) {
+            Write-Host "Installed template files:"
+            Get-ChildItem $templateVersion -File -Recurse | ForEach-Object { Write-Host $_.FullName }
+          }
 
       - name: Import and validate project
         shell: pwsh
         run: |
-          & $env:GODOT_EXE --path "$env:GITHUB_WORKSPACE" --editor --no-window --quit
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $env:GODOT_EXE --path "$env:GITHUB_WORKSPACE" --editor --no-window --quit --verbose
+          if ($LASTEXITCODE -ne 0) { throw "Godot project import/validation failed with exit code $LASTEXITCODE." }
 
       - name: Export Windows executable
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path "build" | Out-Null
-          & $env:GODOT_EXE --path "$env:GITHUB_WORKSPACE" --export-release "Windows Desktop" "build/ProjectVelocity.exe"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (-not (Test-Path "build/ProjectVelocity.exe")) { throw "Windows executable was not created." }
+          $output = Join-Path $env:GITHUB_WORKSPACE "ProjectVelocity.exe"
+          if (Test-Path $output) { Remove-Item $output -Force }
+          & $env:GODOT_EXE --path "$env:GITHUB_WORKSPACE" --export-release "Windows Desktop" "$output" --verbose
+          $exportExit = $LASTEXITCODE
+          Write-Host "Godot export exit code: $exportExit"
+          Write-Host "Files created in workspace:"
+          Get-ChildItem "$env:GITHUB_WORKSPACE" -Force -Recurse -File | Where-Object { $_.Name -match "ProjectVelocity|\.exe$" } | ForEach-Object { Write-Host "$($_.FullName) ($($_.Length) bytes)" }
+          if ($exportExit -ne 0) { throw "Godot Windows export failed with exit code $exportExit." }
+          if (-not (Test-Path $output -PathType Leaf)) { throw "Godot returned success but did not create $output. See verbose export log above." }
+          $file = Get-Item $output
+          if ($file.Length -lt 1000000) { throw "Exported executable is unexpectedly small ($($file.Length) bytes)." }
+          $stream = [System.IO.File]::OpenRead($output)
+          try {
+            $header = New-Object byte[] 2
+            [void]$stream.Read($header, 0, 2)
+          } finally { $stream.Dispose() }
+          if ($header[0] -ne 0x4D -or $header[1] -ne 0x5A) { throw "Exported file does not have a Windows EXE signature." }
 
       - name: Package portable prototype
         shell: pwsh
         run: |
-          Copy-Item "README.md" "build/README.txt"
-          Compress-Archive -Path "build/ProjectVelocity.exe","build/README.txt" -DestinationPath "ProjectVelocity-Windows.zip" -Force
+          New-Item -ItemType Directory -Force -Path "package" | Out-Null
+          Copy-Item "ProjectVelocity.exe" "package/ProjectVelocity.exe"
+          Copy-Item "README.md" "package/README.txt"
+          Compress-Archive -Path "package/ProjectVelocity.exe","package/README.txt" -DestinationPath "ProjectVelocity-Windows.zip" -Force
+          if (-not (Test-Path "ProjectVelocity-Windows.zip" -PathType Leaf)) { throw "ZIP package was not created." }
+          Write-Host "Package size: $((Get-Item 'ProjectVelocity-Windows.zip').Length) bytes"
 
       - name: Upload playable Windows build
         uses: actions/upload-artifact@v4
