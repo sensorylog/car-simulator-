@@ -22,8 +22,8 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          base="https://github.com/godotengine/godot/releases/download/3.6.3-stable"
-          curl -L "$base/Godot_v3.6.3-stable_linux.x86_64.zip" -o "$RUNNER_TEMP/godot.zip"
+          base="https://godot-releases.nbg1.your-objectstorage.com/3.6.3-stable"
+          curl --fail --location --retry 3 "$base/Godot_v3.6.3-stable_x11.64.zip" -o "$RUNNER_TEMP/godot.zip"
           mkdir -p "$RUNNER_TEMP/godot"
           unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP/godot"
           GODOT_BIN="$(find "$RUNNER_TEMP/godot" -maxdepth 2 -type f -name 'Godot*' | head -n 1)"
@@ -31,7 +31,7 @@ jobs:
           chmod +x "$GODOT_BIN"
           echo "GODOT_BIN=$GODOT_BIN" >> "$GITHUB_ENV"
 
-          curl -L "$base/Godot_v3.6.3-stable_export_templates.tpz" -o "$RUNNER_TEMP/templates.tpz"
+          curl --fail --location --retry 3 "$base/Godot_v3.6.3-stable_export_templates.tpz" -o "$RUNNER_TEMP/templates.tpz"
           mkdir -p "$RUNNER_TEMP/templates"
           unzip -q "$RUNNER_TEMP/templates.tpz" -d "$RUNNER_TEMP/templates"
           test -f "$RUNNER_TEMP/templates/templates/windows_64_release.exe"
